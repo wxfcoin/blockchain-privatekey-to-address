@@ -26,8 +26,8 @@ void btc_to_bch(char addrStr[35])
 	struct btcaddr addr;
 	memcpy(&addr, data, 25);
 
-	char prefix[20] = {0};
-	char type[20] = {0};
+	char prefix[20] = { 0 };
+	char type[20] = { 0 };
 	switch (addr.version)
 	{
 	case 0x00:
@@ -53,16 +53,16 @@ void btc_to_bch(char addrStr[35])
 
 int getTypeBits(char tp[])
 {
-	if (strcmp(tp, "P2PKH")==0)
+	if (strcmp(tp, "P2PKH") == 0)
 		return 0;
-	if (strcmp(tp, "P2SH")==0)
+	if (strcmp(tp, "P2SH") == 0)
 		return 8;
 	return -1;
 }
 
 int getHashSizeBits(int hash_len)
 {
-	switch (hash_len* 8) 
+	switch (hash_len * 8)
 	{
 	case 160:
 		return 0;
@@ -98,13 +98,13 @@ int64_t polymod(uint8_t* data, int data_len) {
 	int64_t checksum = 1;
 	for (int i = 0; i < data_len; ++i) {
 		uint8_t value = data[i];
-		int64_t topBits = checksum>>35;
-		checksum = ((checksum & (0x07ffffffff))<<5)^value;
+		int64_t topBits = checksum >> 35;
+		checksum = ((checksum & (0x07ffffffff)) << 5) ^ value;
 		//checksum = checksum.and(0x07ffffffff).shiftLeft(5).xor(value);
 		for (int j = 0; j < 5; ++j) {
-			if (((topBits>>j)&1) == 1)
+			if (((topBits >> j) & 1) == 1)
 			{
-				checksum = checksum^(GENERATOR[j]);
+				checksum = checksum ^ (GENERATOR[j]);
 			}
 		}
 	}
@@ -124,72 +124,70 @@ uint8_t* checksumToUint5Array(uint64_t checksum) {
 	uint8_t* result = malloc(8);
 	for (int i = 0; i < 8; ++i) {
 		result[7 - i] = checksum & (31);
-		checksum = checksum>> (5);
+		checksum = checksum >> (5);
 	}
 	return result;
 }
 
 
-char* encode(char prefix[], char tp[], uint8_t hh[20]) 
+char* encode(char prefix[], char tp[], uint8_t hh[20])
 {
-	    
-		//prefix
-		int prefixDataLen = strlen(prefix) + 1;
-		uint8_t* prefixData = malloc(strlen(prefix)+1);
-		memset(prefixData, 0, strlen(prefix) + 1);
-		memcpy(prefixData, prefixToUint5Array(prefix, strlen(prefix)), strlen(prefix));
+	//prefix
+	int prefixDataLen = strlen(prefix) + 1;
+	uint8_t* prefixData = malloc(strlen(prefix) + 1);
+	memset(prefixData, 0, strlen(prefix) + 1);
+	memcpy(prefixData, prefixToUint5Array(prefix, strlen(prefix)), strlen(prefix));
 
-		//版本字节 
-		uint8_t payloadDataUint8[25] = { 0 };
-		uint8_t versionByte = getTypeBits(tp) + getHashSizeBits(20);
-		int index = 0;
-		memcpy(payloadDataUint8 + index, &versionByte, sizeof(versionByte));
-		index += sizeof(versionByte);
-		 
-		memcpy(payloadDataUint8 + index, hh, 20);
-		index += 20;
+	//版本字节 
+	uint8_t payloadDataUint8[25] = { 0 };
+	uint8_t versionByte = getTypeBits(tp) + getHashSizeBits(20);
+	int index = 0;
+	memcpy(payloadDataUint8 + index, &versionByte, sizeof(versionByte));
+	index += sizeof(versionByte);
 
-		uint8_t* payloadData = toUint5Array(payloadDataUint8, index);
-		int payloadDataLen = 34;
-		for (int i = 0; i < 34; ++i)
-		{
-			printf("%d\n", payloadData[i]);
-		}
+	memcpy(payloadDataUint8 + index, hh, 20);
+	index += 20;
 
-		//
-		int checksumDataLen = prefixDataLen + payloadDataLen + 8;
-		uint8_t* checksumData = malloc(checksumDataLen);
-		memset(checksumData, 0, prefixDataLen + payloadDataLen + 8);
-		memcpy(checksumData, prefixData, prefixDataLen);
-		memcpy(checksumData + prefixDataLen, payloadData, payloadDataLen);
-		
-		//var checksumData = concat(concat(prefixData, payloadData), new Uint8Array(8));
-		int payloadLen = payloadDataLen + 8;
-		uint8_t* payload = malloc(payloadLen);
-		memset(payload, 0, payloadLen);
-		memcpy(payload, payloadData, payloadDataLen);
-		memcpy(payload + payloadDataLen, checksumToUint5Array(polymod(checksumData, checksumDataLen)), 8);
+	uint8_t* payloadData = toUint5Array(payloadDataUint8, index);
+	int payloadDataLen = 34;
+	//for (int i = 0; i < 34; ++i){
+	//	printf("%02x", payloadData[i]);
+	//}puts("");
 
-		for (int i = 0; i < 42; ++i)
-		{
-			printf("%d\n", payload[i]);
-		}
+	//
+	int checksumDataLen = prefixDataLen + payloadDataLen + 8;
+	uint8_t* checksumData = malloc(checksumDataLen);
+	memset(checksumData, 0, prefixDataLen + payloadDataLen + 8);
+	memcpy(checksumData, prefixData, prefixDataLen);
+	memcpy(checksumData + prefixDataLen, payloadData, payloadDataLen);
 
-		char* bchaddr = base32_encode(payload, payloadLen);
-		printf(bchaddr);
-		return bchaddr;
+	//var checksumData = concat(concat(prefixData, payloadData), new Uint8Array(8));
+	int payloadLen = payloadDataLen + 8;
+	uint8_t* payload = malloc(payloadLen);
+	memset(payload, 0, payloadLen);
+	memcpy(payload, payloadData, payloadDataLen);
+	memcpy(payload + payloadDataLen, checksumToUint5Array(polymod(checksumData, checksumDataLen)), 8);
+
+	//for (int i = 0; i < 42; ++i){
+	//	printf("%02x ", payload[i]);
+	//}
+	//puts("");
+
+	char* bchaddr = base32_encode(payload, payloadLen);
+	printf("bchaddr=%s\n",bchaddr);
+	return bchaddr;
 }
 
 uint8_t* convertBits(uint8_t data[], int data_len, int from, int to, bool strictMode) {
 	int length = data_len * from / to;
-	if((data_len * from) % to != 0)
-		length = strictMode? length : length+1;
+	if ((data_len * from) % to != 0)
+		length = strictMode ? length : length + 1;
 	int mask = (1 << to) - 1;
 	uint8_t* result = malloc(length);
 	int index = 0;
 	int accumulator = 0;
 	int bits = 0;
-	for (int i = 0; i < data_len; ++i) 
+	for (int i = 0; i < data_len; ++i)
 	{
 		uint8_t value = data[i];
 		//validate(0 <= value && (value >> from) == = 0, 'Invalid value: ' + value + '.');
@@ -228,7 +226,7 @@ uint8_t* toUint5Array(uint8_t data[], int data_len) {
 
 uint8_t* prefixToUint5Array(uint8_t* prefix, int len) {
 	uint8_t* result = (uint8_t*)malloc(len);
-	for (int i = 0; i < len; ++i) 
+	for (int i = 0; i < len; ++i)
 	{
 		result[i] = prefix[i] & 31;
 	}

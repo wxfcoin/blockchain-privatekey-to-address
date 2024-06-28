@@ -6,7 +6,7 @@
 extern "C" {
 #endif
 
-	extern void bitcoinPrivate2Address(const char privIn[64], char * privStr, char addrStr[35], int mainNet);
+	extern void bitcoinPrivate2Address(const char privIn[64], char * privStr, char addrStr[35], int mainNet, int compressed);
 
 #ifdef __cplusplus
 }

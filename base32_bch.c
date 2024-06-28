@@ -31,8 +31,8 @@ var CHARSET_INVERSE_INDEX = {
 */
 char* base32_encode(uint8_t* data, int datalen) {
 	//validate(data instanceof Uint8Array, 'Invalid data: ' + data + '.');
-	char* base32 = malloc(datalen);
-	memset(base32, 0, datalen);
+	char* base32 = malloc(datalen+1);
+	memset(base32, 0, datalen+1);
 	for (int i = 0; i < datalen; ++i) {
 		int value = data[i];
 		//validate(0 <= value && value < 32, 'Invalid value: ' + value + '.');

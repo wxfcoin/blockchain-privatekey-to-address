@@ -32,13 +32,16 @@
 
 #pragma warning(disable:4996)
 
-const char *mnemonic_generate(int strength)
+const char *mnemonic_generate(int strength, char*key)
 {
 	if (strength % 32 || strength < 128 || strength > 256) {
 		return 0;
 	}
 	uint8_t data[32];
-	random_buffer(data, 32);
+	if (key)
+		memcpy(data, key, sizeof(data));
+	else
+		random_buffer(data, 32);
 	return mnemonic_from_data(data, strength / 8);
 }
 

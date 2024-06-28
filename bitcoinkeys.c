@@ -14,12 +14,13 @@ Checksum = 1st 4 bytes of SHA-256(SHA-256(Key hash))
 Bitcoin Address = Base58Encode(Key hash concatenated with Checksum)
 https://en.bitcoin.it/wiki/Protocol_documentation#Addresses
 */
-void bitcoinPrivate2Address(const char privIn[64], char * privStr, char addrStr[35], int mainNet)
+void bitcoinPrivate2Address(const char privIn[64], char * privStr, char addrStr[35], int mainNet, int compressed)
 {
+	int pub_size = 65;
 	uint8_t priv[32];
+	uint8_t pub[65];//保存公钥
 	uint8_t x[32];
 	uint8_t y[32];
-	uint8_t pub33[33];//保存公钥
 	uint8_t h256[32+1];//sha256后的hash
 	uint8_t hripemd[20+12];//ripemd后的hash
 	uint8_t keyhash[21+1];
@@ -30,18 +31,26 @@ void bitcoinPrivate2Address(const char privIn[64], char * privStr, char addrStr[
 	//1、从私钥得到公钥public key
 	bigFromHexString(privIn, priv);
 	ecPubkey(priv, x, y);
-
-	if (y[0] % 2)
-		pub33[32] = 0x03;
-	else
-		pub33[32] = 0x02;
-	memcpy(pub33, x, 32);
+	if (!compressed) {
+		pub[64] = 0x04;
+		memcpy(pub, y, 32);
+		memcpy(&pub[32], x, 32);
+	}
+	else {
+		pub_size = 33;
+		pub[32] = (y[0] % 2)?0x03:0x02;
+		memcpy(pub, x, 32);
+	}
 
 	//2、h256 = sha256(public key)
 	HashState hs;
 	sha256Begin(&hs);
-	for (int i = 0; i < 33; ++i)
-		sha256WriteByte(&hs, pub33[32-i]);
+	printf("pubkey: ");
+	for (int i = 0; i < pub_size; ++i) {
+		sha256WriteByte(&hs, pub[pub_size - 1 - i]);
+		printf("%02x", pub[pub_size - 1 - i]);
+	}
+	puts("");
 	sha256Finish(&hs);
 	writeHashToByteArray(h256, &hs, true);
 

@@ -1642,4 +1642,89 @@ int main(void)
 }
 
 #endif // #ifdef TEST_ECDSA
+//uncompress bitcoin address
+void test_ecdsa(const char* privIn) {
+	PointAffine p;
+	uint8_t serialised[ECDSA_MAX_SERIALISE_SIZE + 10] = { 0 };
+	char priv[32];
+	bigFromHexString(privIn, priv);
 
+	//swapEndian256(priv); // private_exponent is big-endian, pointMultiply() expects little-endian
+	setToG(&p);
+	pointMultiply(&p, priv);
+	int size = ecdsaSerialise(serialised, &p, false);
+
+	printf("\ntest_ecdsa pubkey: ");
+	for (int i = 0; i < size; ++i) {
+		printf("%02x", serialised[ i]);
+	}
+	puts("");
+	printf("pubkey compressed: ");
+	for (int i = 0; i < 32; ++i) {
+		printf("%02x", p.x[31-i]);
+	}
+	puts("");
+
+	//
+	uint8_t* pub33 = serialised;
+	uint8_t* x = p.x;
+	uint8_t* y = p.y;
+	uint8_t h256[32 + 1];//sha256后的hash
+	uint8_t hripemd[20 + 12];//ripemd后的hash
+	uint8_t keyhash[21 + 1];
+	uint8_t hdouble256[32 + 1];
+	uint8_t checksum[4];
+	uint8_t addressbin[25];
+	int mainNet = 1;
+
+	//if (y[0] % 2)
+	//	//pub33[32] = 0x03;
+	//	serialised[size] = 0x03;
+	//else
+	//	//pub33[32] = 0x02;
+	//	serialised[size] = 0x02;
+	//memcpy(pub33, x, 32);
+
+	//2、h256 = sha256(public key)
+	HashState hs;
+	sha256Begin(&hs);
+	printf("pubkey: ");
+	for (int i = 0; i < size; ++i) {
+		sha256WriteByte(&hs, serialised[i]);
+		printf("%02x", pub33[i]);
+	}
+	puts("");
+	sha256Finish(&hs);
+	writeHashToByteArray(h256, &hs, true);
+
+	//3、keyhash = version + ripemd160(h256)
+	ripemd160Begin(&hs);
+	for (int i = 0; i < 32; i++)
+		ripemd160WriteByte(&hs, h256[i]);
+	ripemd160Finish(&hs);
+	writeHashToByteArray(hripemd, &hs, true);
+	if (mainNet == 1)
+		keyhash[0] = 0;//litecoin:pubkeyhash(0x30),scripthash:(0x32)
+	else
+		keyhash[0] = 111;
+	for (int i = 0; i < 20; ++i)
+		keyhash[i + 1] = hripemd[i];
+
+	//4、checksum = first 4bytes of SHA256(SHA256(keyhash))
+	sha256Begin(&hs);
+	for (int i = 0; i < 21; ++i)
+		sha256WriteByte(&hs, keyhash[i]);
+	sha256FinishDouble(&hs);
+	writeHashToByteArray(hdouble256, &hs, true);
+	for (int i = 0; i < 4; ++i)
+		checksum[i] = hdouble256[i];
+
+	//5、Address = Base58Encode(keyhash + checksum)
+	memcpy(addressbin, keyhash, 21);
+	memcpy(addressbin + 21, checksum, 4);
+
+	int addrlen = 35;
+	char addrStr[35];
+	b58enc(addrStr, &addressbin, addressbin, 25);
+	printf("addrStr: %s\n", addrStr);
+}
